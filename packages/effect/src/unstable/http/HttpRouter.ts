@@ -52,7 +52,7 @@ export interface HttpRouter {
   readonly prefixed: (prefix: string) => HttpRouter
 
   readonly add: <E = never, R = never>(
-    method: "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS",
+    method: "*" | "GET" | "QUERY" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS",
     path: PathInput,
     handler:
       | HttpServerResponse.HttpServerResponse
@@ -509,7 +509,7 @@ export const use = <A, E, R>(
  * @since 4.0.0
  */
 export const add = <E = never, R = never>(
-  method: "*" | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS",
+  method: "*" | "GET" | "QUERY" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS",
   path: PathInput,
   handler:
     | HttpServerResponse.HttpServerResponse

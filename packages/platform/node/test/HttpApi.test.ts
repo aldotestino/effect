@@ -1,4 +1,4 @@
-import { NodeHttpServer } from "@effect/platform-node"
+import { NodeHttpClient, NodeHttpServer } from "@effect/platform-node"
 import { assert, describe, expect, it } from "@effect/vitest"
 import {
   Array,
@@ -21,6 +21,7 @@ import {
 } from "effect"
 import {
   Cookies,
+  FetchHttpClient,
   HttpBody,
   HttpClient,
   HttpClientRequest,
@@ -68,6 +69,68 @@ function* assertClientError<A, E, R>(res: Effect.Effect<A, E, R>, error: E) {
 }
 
 describe("HttpApi", () => {
+  for (
+    const [name, clientLayer] of [
+      ["Fetch", FetchHttpClient.layer],
+      ["Node HTTP", NodeHttpClient.layerNodeHttp],
+      ["Undici", NodeHttpClient.layerUndici]
+    ] as const
+  ) {
+    it.effect(`round trips QUERY bodies using ${name}`, () => {
+      const Payload = Schema.Struct({ terms: Schema.Array(Schema.String) })
+      const Api = HttpApi.make("api").add(
+        HttpApiGroup.make("search").add(
+          HttpApiEndpoint.query("query", "/search", {
+            query: { limit: Schema.Finite },
+            payload: Payload,
+            success: Schema.Struct({ terms: Schema.Array(Schema.String), limit: Schema.Number })
+          })
+        )
+      )
+      const GroupLayer = HttpApiBuilder.group(
+        Api,
+        "search",
+        (handlers) =>
+          handlers.handle("query", ({ payload, query, request }) => {
+            assert.strictEqual(request.method, "QUERY")
+            assert.strictEqual(request.url, "/search?limit=2")
+            return Effect.succeed({ ...payload, limit: query.limit })
+          })
+      )
+      const ApiLayer = HttpRouter.serve(
+        HttpApiBuilder.layer(Api).pipe(Layer.provide(GroupLayer)),
+        { disableListenLog: true, disableLogger: true }
+      ).pipe(Layer.provideMerge(NodeHttpServer.layerTest))
+
+      return Effect.gen(function*() {
+        const client = yield* HttpApiClient.make(Api)
+        assert.deepStrictEqual(
+          yield* client.search.query({ query: { limit: 2 }, payload: { terms: ["one", "two"] } }),
+          { terms: ["one", "two"], limit: 2 }
+        )
+
+        const httpClient = yield* HttpClient.HttpClient
+        const options = { body: HttpBody.text("{\"terms\":[\"one\"]}", "application/json"), urlParams: { limit: 2 } }
+        yield* assertServerJson(yield* httpClient.query("/search", options), 200, { terms: ["one"], limit: 2 })
+        yield* assertServerJson(yield* HttpClient.query("/search", options), 200, { terms: ["one"], limit: 2 })
+
+        const invalid = yield* HttpClientRequest.query("/search", { urlParams: { limit: 2 } }).pipe(
+          HttpClientRequest.bodyJsonUnsafe({ terms: 42 }),
+          HttpClient.execute
+        )
+        assert.strictEqual(invalid.status, 400)
+        const malformed = yield* httpClient.query("/search", {
+          body: HttpBody.text("{", "application/json"),
+          urlParams: { limit: 2 }
+        })
+        assert.strictEqual(malformed.status, 400)
+      }).pipe(
+        Effect.provide(HttpServer.layerTestClient.pipe(Layer.provide(clientLayer))),
+        Effect.provide(ApiLayer)
+      )
+    })
+  }
+
   it.effect("catch all path", () => {
     const Api = HttpApi.make("api")
       .add(

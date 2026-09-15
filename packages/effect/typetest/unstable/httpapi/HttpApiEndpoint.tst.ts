@@ -185,6 +185,29 @@ describe("HttpApiEndpoint", () => {
       })
     })
 
+    describe("QUERY", () => {
+      it("infers a JSON body independently of URL query parameters", () => {
+        const endpoint = HttpApiEndpoint.query("search", "/search", {
+          query: { limit: Schema.Finite },
+          payload: Schema.Struct({ terms: Schema.Array(Schema.String) })
+        })
+        expect(endpoint.method).type.toBe<"QUERY">()
+        expect(endpoint["~Payload"]).type.toBe<
+          Schema.toCodecJson<Schema.Struct<{ readonly terms: Schema.$Array<Schema.String> }>>
+        >()
+        expect(endpoint["~Query"]).type.toBe<Schema.toCodecStringTree<Schema.Struct<{ limit: Schema.Finite }>>>()
+        expect(HttpApiEndpoint.make("QUERY")).type.toBe<typeof HttpApiEndpoint.query>()
+      })
+
+      it("preserves body codecs when automatic codecs are disabled", () => {
+        const endpoint = HttpApiEndpoint.query("search", "/search", {
+          disableCodecs: true,
+          payload: Schema.Array(Schema.String)
+        })
+        expect(endpoint["~Payload"]).type.toBe<Schema.$Array<Schema.String>>()
+      })
+    })
+
     describe("HEAD", () => {
       it("accepts a field record", () => {
         const endpoint = HttpApiEndpoint.head("a", "/a", {

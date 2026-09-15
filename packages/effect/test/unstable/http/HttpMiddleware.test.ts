@@ -14,6 +14,34 @@ import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse"
 
 describe("HttpMiddleware", () => {
   describe("cors", () => {
+    it.effect("allows QUERY preflights by default and respects explicit allowed methods", () =>
+      Effect.gen(function*() {
+        for (const allowedMethods of [undefined, ["GET"]]) {
+          const handler = HttpEffect.toWebHandler(
+            Effect.succeed(HttpServerResponse.empty()).pipe(HttpMiddleware.cors({ allowedMethods }))
+          )
+          const response = yield* Effect.promise(() =>
+            handler(
+              new Request("http://localhost/search", {
+                method: "OPTIONS",
+                headers: {
+                  Origin: "https://client.example",
+                  "Access-Control-Request-Method": "QUERY",
+                  "Access-Control-Request-Headers": "content-type"
+                }
+              })
+            )
+          )
+          assert.strictEqual(response.status, 204)
+          assert.strictEqual(response.headers.get("access-control-allow-origin"), "*")
+          assert.strictEqual(response.headers.get("access-control-allow-headers"), "content-type")
+          assert.strictEqual(
+            response.headers.get("access-control-allow-methods")?.split(", ").includes("QUERY"),
+            allowedMethods === undefined
+          )
+        }
+      }))
+
     it.effect.each([
       {
         name: "adds Origin when Vary is absent",

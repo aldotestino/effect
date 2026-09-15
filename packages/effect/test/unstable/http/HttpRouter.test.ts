@@ -22,6 +22,29 @@ const fetchText = (app: Layer.Layer<never, never, HttpRouter.HttpRouter>, path: 
   )
 
 describe("HttpRouter", () => {
+  it.effect("routes QUERY requests through explicit and wildcard registrations", () => {
+    const echoBody = (request: HttpServerRequest.HttpServerRequest) => Effect.map(request.text, HttpServerResponse.text)
+    const routes = Layer.mergeAll(
+      HttpRouter.add("QUERY", "/direct", echoBody),
+      HttpRouter.use((router) => router.add("QUERY", "/service", echoBody)),
+      HttpRouter.use((router) => router.addAll([HttpRouter.route("*", "/wildcard", echoBody)]))
+    )
+    return Effect.acquireUseRelease(
+      Effect.sync(() => HttpRouter.toWebHandler(routes, { disableLogger: true })),
+      ({ handler }) =>
+        Effect.promise(async () => {
+          for (const path of ["/direct", "/service", "/wildcard"]) {
+            const response = await handler(new Request(`http://localhost${path}`, { method: "QUERY", body: "search" }))
+            assert.strictEqual(response.status, 200)
+            assert.strictEqual(await response.text(), "search")
+          }
+          const response = await handler(new Request("http://localhost/direct"))
+          assert.strictEqual(response.status, 404)
+        }),
+      ({ dispose }) => Effect.promise(dispose)
+    )
+  })
+
   it("normalizes the prefix stored by prefixRoute", () => {
     const route = HttpRouter.prefixRoute(
       HttpRouter.route("GET", "/users", HttpServerResponse.text("ok")),

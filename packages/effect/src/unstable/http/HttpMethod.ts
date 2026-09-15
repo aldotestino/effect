@@ -17,6 +17,7 @@
  */
 export type HttpMethod =
   | "GET"
+  | "QUERY"
   | "POST"
   | "PUT"
   | "DELETE"
@@ -70,6 +71,7 @@ export const hasBody = (method: HttpMethod): method is HttpMethod.WithBody =>
  */
 export const all: ReadonlySet<HttpMethod> = new Set([
   "GET",
+  "QUERY",
   "POST",
   "PUT",
   "DELETE",
@@ -93,6 +95,7 @@ export const all: ReadonlySet<HttpMethod> = new Set([
  */
 export const allShort = [
   ["GET", "get"],
+  ["QUERY", "query"],
   ["POST", "post"],
   ["PUT", "put"],
   ["DELETE", "del"],

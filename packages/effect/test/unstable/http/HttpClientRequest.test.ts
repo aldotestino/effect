@@ -2,9 +2,26 @@ import { describe, it } from "@effect/vitest"
 import { assertNone, assertSome, assertTrue, deepStrictEqual, strictEqual } from "@effect/vitest/utils"
 import { ByteSize, Effect, FileSystem, Stream } from "effect"
 import * as Option from "effect/Option"
-import { Headers, HttpBody, HttpClientRequest } from "effect/unstable/http"
+import { Headers, HttpBody, HttpClientRequest, HttpMethod } from "effect/unstable/http"
 
 describe("HttpClientRequest", () => {
+  it.effect("preserves QUERY bodies when converting to and from Web requests", () =>
+    Effect.gen(function*() {
+      const request = HttpClientRequest.query("https://example.com/search", {
+        body: HttpBody.text("search terms"),
+        urlParams: { limit: 10 }
+      })
+      assertTrue(HttpMethod.isHttpMethod(request.method))
+      assertTrue(HttpMethod.hasBody(request.method))
+      const web = yield* HttpClientRequest.toWeb(request)
+      strictEqual(web.method, "QUERY")
+      strictEqual(web.url, "https://example.com/search?limit=10")
+      strictEqual(yield* Effect.promise(() => web.clone().text()), "search terms")
+      const roundTrip = yield* HttpClientRequest.toWeb(HttpClientRequest.fromWeb(web))
+      strictEqual(roundTrip.method, "QUERY")
+      strictEqual(yield* Effect.promise(() => roundTrip.text()), "search terms")
+    }))
+
   describe("bodyFile", () => {
     const oversized = 9007199254740993n
     const fileSystem = (size: bigint) =>

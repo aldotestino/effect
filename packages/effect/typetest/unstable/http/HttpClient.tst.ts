@@ -10,6 +10,13 @@ declare const recoverNumber: (error: "error") => Effect.Effect<number>
 declare const recoverResponse: (error: "error") => Effect.Effect<HttpClientResponse.HttpClientResponse>
 
 describe("HttpClient", () => {
+  it("preserves errors and service requirements for QUERY", () => {
+    expect(HttpClient.query("/search")).type.toBe<
+      Effect.Effect<HttpClientResponse.HttpClientResponse, HttpClientError.HttpClientError, HttpClient.HttpClient>
+    >()
+    expect(failingClient.query("/search")).type.toBe<Effect.Effect<HttpClientResponse.HttpClientResponse, "error">>()
+  })
+
   describe("urlParams", () => {
     it("should accept coercible records", () => {
       interface Params {

@@ -1,5 +1,6 @@
 /**
- * Generates OpenAPI 3.1 documents from declarative `HttpApi` contracts.
+ * Generates OpenAPI 3.1 documents from declarative `HttpApi` contracts, using
+ * OpenAPI 3.2 for APIs that expose `QUERY` operations.
  *
  * The generator reads API groups, endpoints, schemas, security definitions, and
  * annotations, then produces an OpenAPI document. This module also provides the
@@ -250,7 +251,7 @@ function processAnnotation<Services, S, I>(
 }
 
 /**
- * Generates an OpenAPI 3.1 specification from an `HttpApi`.
+ * Generates an OpenAPI specification from an `HttpApi`.
  *
  * **When to use**
  *
@@ -260,7 +261,8 @@ function processAnnotation<Services, S, I>(
  *
  * This function takes an `HttpApi` instance, which defines a structured API,
  * and generates an OpenAPI Specification (`OpenAPISpec`). The resulting spec
- * adheres to the OpenAPI 3.1.0 standard and includes detailed metadata such as
+ * uses OpenAPI 3.2.0 when an included endpoint uses `QUERY`, otherwise 3.1.0,
+ * and includes detailed metadata such as
  * paths, operations, security schemes, and components. The function processes
  * the API's annotations, middleware, groups, and endpoints to build a complete
  * and accurate representation of the API in OpenAPI format.
@@ -379,6 +381,9 @@ function makeOpenApi<Id extends string, Groups extends HttpApiGroup.Constraint>(
     onEndpoint({ endpoint, group, mergedAnnotations, middleware }) {
       if (Context.get(mergedAnnotations, Exclude)) {
         return
+      }
+      if (endpoint.method === "QUERY") {
+        spec.openapi = "3.2.0"
       }
       const op: OpenAPISpecOperation = {
         tags: [Context.getOrElse(group.annotations, Title, () => group.identifier)],
@@ -958,7 +963,7 @@ const securitySchemeForComparison = (scheme: OpenAPISecurityScheme): OpenAPISecu
 }
 
 /**
- * This model describes the OpenAPI specification (version 3.1.0) returned by
+ * This model describes the OpenAPI specification (version 3.1.0 or 3.2.0) returned by
  * {@link fromApi}. It is not intended to describe the entire OpenAPI
  * specification, only the output of `fromApi`.
  *
@@ -966,7 +971,7 @@ const securitySchemeForComparison = (scheme: OpenAPISecurityScheme): OpenAPISecu
  * @since 4.0.0
  */
 export interface OpenAPISpec {
-  openapi: "3.1.0"
+  openapi: "3.1.0" | "3.2.0"
   info: OpenAPISpecInfo
   paths: OpenAPISpecPaths
   components: OpenAPIComponents
@@ -1064,6 +1069,7 @@ export type OpenAPISpecPaths = Record<string, OpenAPISpecPathItem>
  */
 export type OpenAPISpecMethodName =
   | "get"
+  | "query"
   | "put"
   | "post"
   | "delete"

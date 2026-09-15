@@ -177,6 +177,14 @@ export const make = <M extends HttpMethod>(
 export const get: (url: string | URL, options?: Options.NoUrl) => HttpClientRequest = make("GET")
 
 /**
+ * Creates a safe, idempotent `QUERY` request that can carry a request body.
+ *
+ * @category constructors
+ * @since 4.0.0
+ */
+export const query: (url: string | URL, options?: Options.NoUrl) => HttpClientRequest = make("QUERY")
+
+/**
  * Creates a `POST` request for the specified URL.
  *
  * @category constructors
